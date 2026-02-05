@@ -35,11 +35,11 @@ app = FastAPI(title="Scam Honeypot API")
 # --------------------------------------------------
 # Startup → Create tables
 # --------------------------------------------------
-@app.on_event("startup")
+"""@app.on_event("startup")
 def startup():
     print("📦 Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    print("✅ Database ready")
+    print("✅ Database ready")"""
 
 
 # --------------------------------------------------
