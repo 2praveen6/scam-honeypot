@@ -9,6 +9,9 @@ CYBERCRIME_EMAIL = "report@cybercrime.gov.in"  # demo target
 def send_scam_report(session_id, message, upi, phone, timestamp):
     sender_email = os.getenv("REPORT_EMAIL")
     sender_password = os.getenv("REPORT_EMAIL_PASSWORD")
+    
+    print("Sender:", sender_email)
+    print("Password loaded:", bool(sender_password))
 
     subject = f"Scam Report - Session {session_id}"
 
