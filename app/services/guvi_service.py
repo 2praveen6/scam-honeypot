@@ -1,13 +1,40 @@
 import json
 import re
 from datetime import datetime
+from typing import Dict, List
 
 from app.db import SessionLocal
 from app.db_models import HoneypotSession
 from app.utils.email_reporter import send_scam_report
 
+# 🔴 Import active WebSocket connections
+from app.main import active_connections
 
-def process_guvi_event(event: dict) -> str:
+
+# =====================================================
+# 📡 Broadcast to Live Dashboard
+# =====================================================
+
+async def broadcast_dashboard_update(data: Dict):
+    """Send real-time update to dashboard clients"""
+    dead_connections: List = []
+
+    for ws in active_connections:
+        try:
+            await ws.send_text(json.dumps(data))
+        except:
+            dead_connections.append(ws)
+
+    # Remove disconnected sockets
+    for ws in dead_connections:
+        active_connections.remove(ws)
+
+
+# =====================================================
+# 🧠 Process Honeypot Event
+# =====================================================
+
+async def process_guvi_event(event: dict) -> str:
     """Process incoming message and return honeypot reply"""
 
     session_id = event["sessionId"]
@@ -17,7 +44,9 @@ def process_guvi_event(event: dict) -> str:
     db = SessionLocal()
 
     try:
-        # Get or create session
+        # =============================
+        # Get or Create Session
+        # =============================
         session = db.query(HoneypotSession).filter_by(
             session_id=session_id
         ).first()
@@ -38,9 +67,9 @@ def process_guvi_event(event: dict) -> str:
         # Update message count
         session.total_messages += 1
 
-        # -----------------------------
+        # =============================
         # 🔎 Extract UPI IDs
-        # -----------------------------
+        # =============================
         upi_pattern = r'\b[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}\b'
         upi_matches = re.findall(upi_pattern, message_text)
 
@@ -52,9 +81,9 @@ def process_guvi_event(event: dict) -> str:
             session.scam_detected = True
             scam_found = True
 
-        # -----------------------------
+        # =============================
         # 📞 Extract Phone Numbers
-        # -----------------------------
+        # =============================
         phone_pattern = r'\b[6-9]\d{9}\b'
         phone_matches = re.findall(phone_pattern, message_text)
 
@@ -68,34 +97,43 @@ def process_guvi_event(event: dict) -> str:
             session.scam_detected = True
             scam_found = True
 
-        # -----------------------------
-        # ⏱ Update timestamp
-        # -----------------------------
+        # =============================
+        # ⏱ Timestamp
+        # =============================
         session.updated_at = datetime.utcnow()
 
-        # Save DB changes
         db.commit()
 
-        # -----------------------------
+        # =============================
         # 📧 Send Email Report
-        # -----------------------------
+        # =============================
         if scam_found:
             try:
                 send_scam_report(
                     session_id=session_id,
                     message=message_text,
-                    upi=", ".join(upi_matches)
-                    if upi_matches else "N/A",
-                    phone=", ".join(phone_matches)
-                    if phone_matches else "N/A",
+                    upi=", ".join(upi_matches) if upi_matches else "N/A",
+                    phone=", ".join(phone_matches) if phone_matches else "N/A",
                     timestamp=str(datetime.utcnow())
                 )
             except Exception as e:
                 print("Email error:", e)
 
-        # -----------------------------
-        # 🤖 Generate honeypot reply
-        # -----------------------------
+        # =============================
+        # 📡 Broadcast to Dashboard
+        # =============================
+        if scam_found:
+            await broadcast_dashboard_update({
+                "session_id": session_id,
+                "message": message_text,
+                "upi_ids": upi_matches,
+                "phone_numbers": phone_matches,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+
+        # =============================
+        # 🤖 Honeypot Reply
+        # =============================
         response = generate_honeypot_response(message_text)
         return response
 
@@ -109,11 +147,11 @@ def process_guvi_event(event: dict) -> str:
 
 
 # =====================================================
-# Honeypot Response Generator
+# 🤖 Honeypot Response Generator
 # =====================================================
 
 def generate_honeypot_response(message: str) -> str:
-    """Generate a realistic honeypot response"""
+    """Generate realistic honeypot replies"""
 
     message_lower = message.lower()
 
