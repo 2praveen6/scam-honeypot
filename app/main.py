@@ -6,13 +6,26 @@ from fastapi.responses import HTMLResponse, FileResponse
 from dotenv import load_dotenv
 load_dotenv()
 
+# 🔐 Config & Services
 from app.config import SECRET_API_KEY
 from app.models.guvi_schemas import GuviRequest, GuviResponse
 from app.services.guvi_service import process_guvi_event
 from app.dashboard import get_dashboard_html
 
+# 🗄️ Database
+from app.db import engine
+from app.db_models import Base
 
+
+# 🚀 Create FastAPI app
 app = FastAPI(title="Scam Honeypot API")
+
+
+# 🧠 Auto-create DB tables on startup
+@app.on_event("startup")
+def startup():
+    print("📦 Creating database tables if not exist...")
+    Base.metadata.create_all(bind=engine)
 
 
 # 🔐 API Key Security
@@ -44,13 +57,13 @@ async def scam_detector_ui():
     return FileResponse(file_path)
 
 
-# 📊 Dashboard
+# 📊 Dashboard UI
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return get_dashboard_html()
 
 
-# 🤖 Honeypot API
+# 🤖 Honeypot API Endpoint
 @app.post(
     "/api/guvi/honeypot",
     response_model=GuviResponse
