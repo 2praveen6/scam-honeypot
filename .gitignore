@@ -13,6 +13,7 @@ Thumbs.db
 
 # Database
 *.db
+honeypot.db
 
 # Reports
 reports/
