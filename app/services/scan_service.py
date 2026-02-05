@@ -1,42 +1,31 @@
-import uuid
-from app.services.guvi_service import process_guvi_event
+def scan_message_simple(message: str):
 
+    text = message.lower()
 
-def scan_message_simple(message: str) -> dict:
-    """
-    Simple public scam scan
-    """
+    red_flags = []
 
-    fake_event = {
-        "sessionId": f"public-{uuid.uuid4()}",
-        "platform": "public",
-        "user_id": "anonymous",
-        "message": {
-            "sender": "user",
-            "text": message,
-            "timestamp": 0
-        },
-        "conversationHistory": []
-    }
+    if "otp" in text:
+        red_flags.append("Asking for OTP")
 
-    reply = process_guvi_event(fake_event)
+    if "urgent" in text:
+        red_flags.append("Creates urgency")
 
-    scam_keywords = [
-        "otp",
-        "urgent",
-        "blocked",
-        "verify",
-        "send money",
-        "upi",
-        "bank"
-    ]
+    if "bank" in text:
+        red_flags.append("Bank detail request")
 
-    is_scam = any(
-        word in message.lower()
-        for word in scam_keywords
-    )
+    if "upi" in text or "@paytm" in text:
+        red_flags.append("UPI payment request")
+
+    is_scam = len(red_flags) > 0
 
     return {
+        "success": True,
         "is_scam": is_scam,
-        "reply": reply
+        "confidence": 85 if is_scam else 20,
+        "scam_type": "Financial Scam" if is_scam else None,
+        "red_flags": red_flags,
+        "explanation": "Message shows scam patterns"
+        if is_scam else "No major scam indicators detected",
+        "advice": "Do not share OTP or money"
+        if is_scam else "Stay cautious"
     }
