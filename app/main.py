@@ -59,3 +59,12 @@ async def honeypot(
     return {
         "reply": reply
     }
+
+@app.get("/")
+async def root():
+    return {
+        "service": "Scam Honeypot API",
+        "status": "running",
+        "health": "/health",
+        "endpoint": "/api/guvi/honeypot"
+    }
