@@ -4,10 +4,14 @@ from fastapi.security.api_key import APIKeyHeader
 from fastapi.responses import HTMLResponse, FileResponse
 from dotenv import load_dotenv
 
-# Load env
+# -----------------------------
+# Load Environment Variables
+# -----------------------------
 load_dotenv()
 
-# Config & services
+# -----------------------------
+# Config & Services
+# -----------------------------
 from app.config import SECRET_API_KEY
 from app.models.guvi_schemas import GuviRequest, GuviResponse
 from app.models.scan_schemas import ScanRequest, ScanResponse
@@ -15,21 +19,31 @@ from app.services.guvi_service import process_guvi_event
 from app.services.scan_service import scan_message_simple
 from app.dashboard import get_dashboard_html
 
+# -----------------------------
 # Database
+# -----------------------------
 from app.db import engine
 from app.db_models import Base
 
-# FastAPI app
-app = FastAPI(title="Scam Honeypot API")
-
+# -----------------------------
+# FastAPI App
+# -----------------------------
+app = FastAPI(
+    title="Scam Honeypot API",
+    version="1.0"
+)
 
 # -----------------------------
 # Create DB tables on startup
 # -----------------------------
 @app.on_event("startup")
 def startup():
-    print("📦 Creating database tables...")
-    Base.metadata.create_all(bind=engine)
+    try:
+        print("📦 Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database ready")
+    except Exception as e:
+        print("❌ DB Startup Error:", e)
 
 
 # -----------------------------
@@ -69,6 +83,13 @@ async def scam_detector_ui():
         "templates",
         "scam_detector.html"
     )
+
+    if not os.path.exists(file_path):
+        return HTMLResponse(
+            "<h2>Detector UI not found</h2>",
+            status_code=404
+        )
+
     return FileResponse(file_path)
 
 
@@ -106,11 +127,12 @@ async def scan_message(
 
 
 # -----------------------------
-# Health Check
+# Health Check (Railway uses this)
 # -----------------------------
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
-        "service": "honeypot"
+        "service": "honeypot",
+        "version": "1.0"
     }
